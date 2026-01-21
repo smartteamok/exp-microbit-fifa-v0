@@ -23,13 +23,13 @@ enum BeatDireccion {
 }
 
 enum BeatPosicionLinea {
-    //% block="Izquierda"
+    //% block="izquierda"
     Izquierda,
-    //% block="Centro"
+    //% block="centro"
     Centro,
-    //% block="Derecha"
+    //% block="derecha"
     Derecha,
-    //% block="Ninguna / Otra"
+    //% block="ninguna (todos negro)"
     Ninguna
 }
 
@@ -39,7 +39,7 @@ namespace beatMundial {
     // --- GRUPO: MOTORES ---
 
     /**
-     * Mueve el robot en la dirección indicada a una velocidad por defecto (50%).
+     * Mueve el robot en la dirección indicada a velocidad media (50%).
      */
     //% block="Mover %direccion %motor"
     //% motor.defl=BeatMotor.Ambos
@@ -50,7 +50,7 @@ namespace beatMundial {
     }
 
     /**
-     * Mueve el robot con velocidad controlada (0 a 100).
+     * Mueve el robot controlando dirección y velocidad (0 a 100).
      */
     //% block="Mover %direccion %motor con velocidad %velocidad"
     //% motor.defl=BeatMotor.Ambos
@@ -58,19 +58,21 @@ namespace beatMundial {
     //% group="Motores"
     //% weight=80
     export function moverVelocidad(direccion: BeatDireccion, motor: BeatMotor, velocidad: number): void {
+        // Mapear 0-100 a PWM 0-1023
         let pwm = pins.map(velocidad, 0, 100, 0, 1023);
-        if (pwm < 0) pwm = 0; if (pwm > 1023) pwm = 1023;
+        if (pwm < 0) pwm = 0; 
+        if (pwm > 1023) pwm = 1023;
 
-        // Pines según documentación 
-        // Motor Izquierdo: P15 (Dir), P16 (PWM). Adelante=1, Atrás=0.
-        // Motor Derecho:   P13 (Dir), P14 (PWM). Adelante=0, Atrás=1.
+        // Pines según documentación:
+        // Motor Izq: P15 (Dir), P16 (PWM). Avanzar=1
+        // Motor Der: P13 (Dir), P14 (PWM). Avanzar=0 (Invertido)
 
         let dirIzq = 0; 
         let dirDer = 0;
         let pwmIzq = pwm;
         let pwmDer = pwm;
 
-        // Definir direcciones lógicas
+        // Definir lógica de direcciones
         switch (direccion) {
             case BeatDireccion.Adelante:
                 dirIzq = 1; dirDer = 0; // Ambos avanzan
@@ -86,18 +88,13 @@ namespace beatMundial {
                 break;
         }
 
-        // Aplicar a los motores seleccionados
-        // Si se elige un solo motor, ignoramos los giros "izquierda/derecha" y aplicamos adelante/atras relativo al motor
-        
-        // Motor Izquierdo
+        // Aplicar a Motor Izquierdo
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
-            // Si es giro y solo seleccionó motor izquierdo, forzamos comportamiento seguro (o silencio)
-            // Aquí aplicamos la lógica calculada arriba.
             pins.digitalWritePin(DigitalPin.P15, dirIzq);
             pins.analogWritePin(AnalogPin.P16, pwmIzq);
         }
 
-        // Motor Derecho
+        // Aplicar a Motor Derecho
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
             pins.digitalWritePin(DigitalPin.P13, dirDer);
             pins.analogWritePin(AnalogPin.P14, pwmDer);
@@ -105,7 +102,7 @@ namespace beatMundial {
     }
 
     /**
-     * Detiene los motores.
+     * Detiene los motores seleccionados.
      */
     //% block="Parar %motor"
     //% group="Motores"
@@ -119,51 +116,50 @@ namespace beatMundial {
         }
     }
 
-    // --- GRUPO: ENTRADAS DIGITALES (Sensores) ---
+    // --- GRUPO: ENTRADAS DIGITALES ---
 
     /**
-     * Determina la posición de la línea negra basándose en la lógica del documento.
-     * Izquierda (P10), Centro (P1), Derecha (P2).
-     * Devuelve: Izquierda, Centro, Derecha o Ninguna.
+     * Comprueba si el sensor indicado detecta línea negra.
+     * Umbral: Negro > 30.
      */
-    //% block="Leer estado línea"
+    //% block="siguelíneas %posicion"
     //% group="Entradas Digitales"
     //% weight=50
-    export function leerEstadoLinea(): BeatPosicionLinea {
-        // Pines definidos en la documentación 
+    export function siguelineas(posicion: BeatPosicionLinea): boolean {
+        // Lectura de pines (P10=Izq, P1=Cen, P2=Der)
         let valIzq = pins.analogReadPin(AnalogPin.P10);
         let valCen = pins.analogReadPin(AnalogPin.P1);
         let valDer = pins.analogReadPin(AnalogPin.P2);
-
-        // Lógica de validación exacta del documento:
-        // "Validación: detección color blanco con menor o igual a 30."
         
-        // Caso Derecha: if (seguidorDerecha <= 30 && (seguidorIzquierda > 30 && seguidorCentro > 30))
-        if (valDer <= 30 && valIzq > 30 && valCen > 30) {
-            return BeatPosicionLinea.Derecha;
-        }
+        // Umbral según documentación: Blanco <= 30. Asumimos Negro > 30.
+        const UMBRAL = 30;
 
-        // Caso Centro: if (seguidorDerecha > 30 && (seguidorIzquierda > 30 && seguidorCentro > 30))
-        if (valDer > 30 && valIzq > 30 && valCen > 30) {
-            return BeatPosicionLinea.Centro;
+        switch (posicion) {
+            case BeatPosicionLinea.Izquierda:
+                return (valIzq > UMBRAL);
+            
+            case BeatPosicionLinea.Centro:
+                return (valCen > UMBRAL);
+            
+            case BeatPosicionLinea.Derecha:
+                return (valDer > UMBRAL);
+            
+            case BeatPosicionLinea.Ninguna:
+                // Retorna verdadero si TODOS detectan línea (negro)
+                return (valIzq > UMBRAL && valCen > UMBRAL && valDer > UMBRAL);
         }
-
-        // Caso Izquierda: if (seguidorIzquierda <= 30 && (seguidorDerecha > 30 && seguidorCentro > 30))
-        if (valIzq <= 30 && valDer > 30 && valCen > 30) {
-            return BeatPosicionLinea.Izquierda;
-        }
-
-        return BeatPosicionLinea.Ninguna;
+        return false;
     }
 
     /**
-     * Lee la distancia en cm (Ultrasonido).
+     * Lee la distancia en cm usando el sensor ultrasónico.
+     * Pines: Trig P2, Echo P1.
      */
     //% block="Leer distancia (cm)"
     //% group="Entradas Digitales"
     //% weight=40
     export function leerDistancia(): number {
-        // Pines P2 (Trig) y P1 (Echo) 
+        // Pines fijos P2/P1
         pins.digitalWritePin(DigitalPin.P2, 0);
         control.waitMicros(2);
         pins.digitalWritePin(DigitalPin.P2, 1);
@@ -172,6 +168,7 @@ namespace beatMundial {
         
         let d = pins.pulseIn(DigitalPin.P1, PulseValue.High, 25000);
         if (d == 0) return 0;
+        
         return Math.floor(d / 58);
     }
 }
