@@ -33,6 +33,11 @@ enum BeatPosicionLinea {
     Ninguna
 }
 
+enum BeatPuerto {
+    //% block="1"
+    Puerto1 = 1
+}
+
 //% color="#228B22" weight=100 icon="\uf1e3" block="Beat Mundial"
 namespace beatMundial {
 
@@ -58,12 +63,11 @@ namespace beatMundial {
     //% group="Motores"
     //% weight=80
     export function moverVelocidad(direccion: BeatDireccion, motor: BeatMotor, velocidad: number): void {
-        // Mapear 0-100 a PWM 0-1023
         let pwm = pins.map(velocidad, 0, 100, 0, 1023);
         if (pwm < 0) pwm = 0; 
         if (pwm > 1023) pwm = 1023;
 
-        // Pines según documentación:
+        // Pines definidos según hardware
         // Motor Izq: P15 (Dir), P16 (PWM). Avanzar=1
         // Motor Der: P13 (Dir), P14 (PWM). Avanzar=0 (Invertido)
 
@@ -72,29 +76,26 @@ namespace beatMundial {
         let pwmIzq = pwm;
         let pwmDer = pwm;
 
-        // Definir lógica de direcciones
         switch (direccion) {
             case BeatDireccion.Adelante:
-                dirIzq = 1; dirDer = 0; // Ambos avanzan
+                dirIzq = 1; dirDer = 0; 
                 break;
             case BeatDireccion.Atras:
-                dirIzq = 0; dirDer = 1; // Ambos retroceden
+                dirIzq = 0; dirDer = 1; 
                 break;
             case BeatDireccion.Izquierda:
-                dirIzq = 0; dirDer = 0; // Izq atrás, Der adelante (Giro s/eje)
+                dirIzq = 0; dirDer = 0; 
                 break;
             case BeatDireccion.Derecha:
-                dirIzq = 1; dirDer = 1; // Izq adelante, Der atrás (Giro s/eje)
+                dirIzq = 1; dirDer = 1; 
                 break;
         }
 
-        // Aplicar a Motor Izquierdo
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
             pins.digitalWritePin(DigitalPin.P15, dirIzq);
             pins.analogWritePin(AnalogPin.P16, pwmIzq);
         }
 
-        // Aplicar a Motor Derecho
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
             pins.digitalWritePin(DigitalPin.P13, dirDer);
             pins.analogWritePin(AnalogPin.P14, pwmDer);
@@ -119,47 +120,45 @@ namespace beatMundial {
     // --- GRUPO: ENTRADAS DIGITALES ---
 
     /**
-     * Comprueba si el sensor indicado detecta línea negra.
-     * Umbral: Negro > 30.
+     * Comprueba la posición de la línea en el pin 1.
      */
-    //% block="siguelíneas %posicion"
+    //% block="siguelíneas %posicion en pin %puerto"
+    //% puerto.defl=BeatPuerto.Puerto1
     //% group="Entradas Digitales"
     //% weight=50
-    export function siguelineas(posicion: BeatPosicionLinea): boolean {
-        // Lectura de pines (P10=Izq, P1=Cen, P2=Der)
+    export function siguelineas(posicion: BeatPosicionLinea, puerto: BeatPuerto): boolean {
+        // Pines fijos para el conector 1
         let valIzq = pins.analogReadPin(AnalogPin.P10);
         let valCen = pins.analogReadPin(AnalogPin.P1);
         let valDer = pins.analogReadPin(AnalogPin.P2);
         
-        // Umbral según documentación: Blanco <= 30. Asumimos Negro > 30.
         const UMBRAL = 30;
 
         switch (posicion) {
             case BeatPosicionLinea.Izquierda:
-                return (valIzq > UMBRAL);
+                return (valIzq <= UMBRAL && valDer > UMBRAL && valCen > UMBRAL);
             
             case BeatPosicionLinea.Centro:
-                return (valCen > UMBRAL);
+                return (valCen <= UMBRAL && valIzq > UMBRAL && valDer > UMBRAL);
             
             case BeatPosicionLinea.Derecha:
-                return (valDer > UMBRAL);
+                return (valDer <= UMBRAL && valIzq > UMBRAL && valCen > UMBRAL);
             
             case BeatPosicionLinea.Ninguna:
-                // Retorna verdadero si TODOS detectan línea (negro)
-                return (valIzq > UMBRAL && valCen > UMBRAL && valDer > UMBRAL);
+                return (valDer > UMBRAL && valIzq > UMBRAL && valCen > UMBRAL);
         }
         return false;
     }
 
     /**
-     * Lee la distancia en cm usando el sensor ultrasónico.
-     * Pines: Trig P2, Echo P1.
+     * Lee la distancia en cm usando el sensor ultrasónico conectado al pin 1.
      */
-    //% block="Leer distancia (cm)"
+    //% block="Leer distancia (cm) en pin %puerto"
+    //% puerto.defl=BeatPuerto.Puerto1
     //% group="Entradas Digitales"
     //% weight=40
-    export function leerDistancia(): number {
-        // Pines fijos P2/P1
+    export function leerDistancia(puerto: BeatPuerto): number {
+        // Pines fijos para el conector 1 (Ultrasonido)
         pins.digitalWritePin(DigitalPin.P2, 0);
         control.waitMicros(2);
         pins.digitalWritePin(DigitalPin.P2, 1);
