@@ -1,7 +1,7 @@
 {
     "name": "Beat Mundial",
     "version": "1.0.1",
-    "description": "Extensión para el kit de robótica Beat Mundial.",
+    "description": "Extensión para el kit de robótica Beat Mundial",
     "license": "MIT",
     "dependencies": {
         "core": "*",
