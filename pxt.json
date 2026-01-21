@@ -1,7 +1,7 @@
 {
-    "name": "exp-microbit-fifa-v0",
-    "version": "0.0.1",
-    "description": "Extensión base para kit de robótica FIFA: Motores y Sensores.",
+    "name": "Beat Mundial",
+    "version": "1.0.0",
+    "description": "Extensión para el kit de robótica Beat Mundial. Control de motores y sensores.",
     "license": "MIT",
     "dependencies": {
         "core": "*",

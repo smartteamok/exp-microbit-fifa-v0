@@ -1,125 +1,177 @@
 /**
- * Bloques personalizados para el Kit de Robótica FIFA - Versión v0
+ * Bloques personalizados para Beat Mundial
  */
 
-enum Motor {
-    //% block="Izquierdo"
-    Izquierdo,
-    //% block="Derecho"
-    Derecho,
+enum BeatMotor {
     //% block="Ambos"
-    Ambos
+    Ambos = 0,
+    //% block="Motor Izq."
+    Izquierdo = 1,
+    //% block="Motor Der."
+    Derecho = 2
 }
 
-enum Direccion {
-    //% block="Adelante"
-    Adelante,
-    //% block="Atrás"
-    Atras
+enum BeatDireccion {
+    //% block="adelante"
+    Adelante = 0,
+    //% block="atrás"
+    Atras = 1,
+    //% block="izquierda"
+    Izquierda = 2,
+    //% block="derecha"
+    Derecha = 3
 }
 
-enum SensorLinea {
-    //% block="Izquierda (P10)"
-    Izquierda = AnalogPin.P10,
-    //% block="Centro (P1)"
-    Centro = AnalogPin.P1,
-    //% block="Derecha (P2)"
-    Derecha = AnalogPin.P2
+enum BeatPosicionLinea {
+    //% block="Izquierda"
+    Izquierda,
+    //% block="Centro"
+    Centro,
+    //% block="Derecha"
+    Derecha,
+    //% block="Ninguna / Otra"
+    Ninguna
 }
 
-//% color="#E63022" weight=100 icon="\uf1ec" block="Robótica FIFA"
-namespace roboticaFifa {
+//% color="#228B22" weight=100 icon="\uf1e3" block="Beat Mundial"
+namespace beatMundial {
+
+    // --- GRUPO: MOTORES ---
 
     /**
-     * Controla la velocidad y dirección de los motores.
-     * La velocidad va de 0 a 100.
+     * Mueve el robot en la dirección indicada a una velocidad por defecto (50%).
      */
-    //% block="mover motor %motor %direccion velocidad %velocidad"
-    //% velocidad.min=0 velocidad.max=100 velocidad.defl=50
+    //% block="Mover %direccion %motor"
+    //% motor.defl=BeatMotor.Ambos
+    //% group="Motores"
     //% weight=90
-    export function moverMotor(motor: Motor, direccion: Direccion, velocidad: number): void {
-        // Mapeamos 0-100 a 0-1023 usando la función nativa de pines
-        let pwm = pins.map(velocidad, 0, 100, 0, 1023);
-        
-        // Limite de seguridad
-        if (pwm < 0) pwm = 0;
-        if (pwm > 1023) pwm = 1023;
+    export function mover(direccion: BeatDireccion, motor: BeatMotor): void {
+        moverVelocidad(direccion, motor, 50);
+    }
 
-        // --- MOTOR IZQUIERDO (P15 Dir, P16 Vel) ---
-        // Lógica: Avanzar P15=1, Retroceder P15=0
-        if (motor == Motor.Izquierdo || motor == Motor.Ambos) {
-            let dirValue = (direccion == Direccion.Adelante) ? 1 : 0;
-            pins.digitalWritePin(DigitalPin.P15, dirValue);
-            pins.analogWritePin(AnalogPin.P16, pwm);
+    /**
+     * Mueve el robot con velocidad controlada (0 a 100).
+     */
+    //% block="Mover %direccion %motor con velocidad %velocidad"
+    //% motor.defl=BeatMotor.Ambos
+    //% velocidad.min=0 velocidad.max=100 velocidad.defl=100
+    //% group="Motores"
+    //% weight=80
+    export function moverVelocidad(direccion: BeatDireccion, motor: BeatMotor, velocidad: number): void {
+        let pwm = pins.map(velocidad, 0, 100, 0, 1023);
+        if (pwm < 0) pwm = 0; if (pwm > 1023) pwm = 1023;
+
+        // Pines según documentación 
+        // Motor Izquierdo: P15 (Dir), P16 (PWM). Adelante=1, Atrás=0.
+        // Motor Derecho:   P13 (Dir), P14 (PWM). Adelante=0, Atrás=1.
+
+        let dirIzq = 0; 
+        let dirDer = 0;
+        let pwmIzq = pwm;
+        let pwmDer = pwm;
+
+        // Definir direcciones lógicas
+        switch (direccion) {
+            case BeatDireccion.Adelante:
+                dirIzq = 1; dirDer = 0; // Ambos avanzan
+                break;
+            case BeatDireccion.Atras:
+                dirIzq = 0; dirDer = 1; // Ambos retroceden
+                break;
+            case BeatDireccion.Izquierda:
+                dirIzq = 0; dirDer = 0; // Izq atrás, Der adelante (Giro s/eje)
+                break;
+            case BeatDireccion.Derecha:
+                dirIzq = 1; dirDer = 1; // Izq adelante, Der atrás (Giro s/eje)
+                break;
         }
 
-        // --- MOTOR DERECHO (P13 Dir, P14 Vel) ---
-        // Lógica: Avanzar P13=0, Retroceder P13=1 (Inverso al izquierdo)
-        if (motor == Motor.Derecho || motor == Motor.Ambos) {
-            let dirValue = (direccion == Direccion.Adelante) ? 0 : 1;
-            pins.digitalWritePin(DigitalPin.P13, dirValue);
-            pins.analogWritePin(AnalogPin.P14, pwm);
+        // Aplicar a los motores seleccionados
+        // Si se elige un solo motor, ignoramos los giros "izquierda/derecha" y aplicamos adelante/atras relativo al motor
+        
+        // Motor Izquierdo
+        if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
+            // Si es giro y solo seleccionó motor izquierdo, forzamos comportamiento seguro (o silencio)
+            // Aquí aplicamos la lógica calculada arriba.
+            pins.digitalWritePin(DigitalPin.P15, dirIzq);
+            pins.analogWritePin(AnalogPin.P16, pwmIzq);
+        }
+
+        // Motor Derecho
+        if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
+            pins.digitalWritePin(DigitalPin.P13, dirDer);
+            pins.analogWritePin(AnalogPin.P14, pwmDer);
         }
     }
 
     /**
-     * Detiene los motores suavemente.
+     * Detiene los motores.
      */
-    //% block="parar motor %motor"
-    //% weight=85
-    export function pararMotor(motor: Motor): void {
-        if (motor == Motor.Izquierdo || motor == Motor.Ambos) {
+    //% block="Parar %motor"
+    //% group="Motores"
+    //% weight=70
+    export function parar(motor: BeatMotor): void {
+        if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
             pins.analogWritePin(AnalogPin.P16, 0);
         }
-        if (motor == Motor.Derecho || motor == Motor.Ambos) {
+        if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
             pins.analogWritePin(AnalogPin.P14, 0);
         }
     }
 
+    // --- GRUPO: ENTRADAS DIGITALES (Sensores) ---
+
     /**
-     * Lee la distancia en cm usando el sensor ultrasónico.
-     * Nota: Por defecto usa pines P2 (Trig) y P1 (Echo).
+     * Determina la posición de la línea negra basándose en la lógica del documento.
+     * Izquierda (P10), Centro (P1), Derecha (P2).
+     * Devuelve: Izquierda, Centro, Derecha o Ninguna.
      */
-    //% block="distancia ultrasónico (cm)"
-    //% weight=80
+    //% block="Leer estado línea"
+    //% group="Entradas Digitales"
+    //% weight=50
+    export function leerEstadoLinea(): BeatPosicionLinea {
+        // Pines definidos en la documentación 
+        let valIzq = pins.analogReadPin(AnalogPin.P10);
+        let valCen = pins.analogReadPin(AnalogPin.P1);
+        let valDer = pins.analogReadPin(AnalogPin.P2);
+
+        // Lógica de validación exacta del documento:
+        // "Validación: detección color blanco con menor o igual a 30."
+        
+        // Caso Derecha: if (seguidorDerecha <= 30 && (seguidorIzquierda > 30 && seguidorCentro > 30))
+        if (valDer <= 30 && valIzq > 30 && valCen > 30) {
+            return BeatPosicionLinea.Derecha;
+        }
+
+        // Caso Centro: if (seguidorDerecha > 30 && (seguidorIzquierda > 30 && seguidorCentro > 30))
+        if (valDer > 30 && valIzq > 30 && valCen > 30) {
+            return BeatPosicionLinea.Centro;
+        }
+
+        // Caso Izquierda: if (seguidorIzquierda <= 30 && (seguidorDerecha > 30 && seguidorCentro > 30))
+        if (valIzq <= 30 && valDer > 30 && valCen > 30) {
+            return BeatPosicionLinea.Izquierda;
+        }
+
+        return BeatPosicionLinea.Ninguna;
+    }
+
+    /**
+     * Lee la distancia en cm (Ultrasonido).
+     */
+    //% block="Leer distancia (cm)"
+    //% group="Entradas Digitales"
+    //% weight=40
     export function leerDistancia(): number {
-        // Pines fijos
-        let trig = DigitalPin.P2;
-        let echo = DigitalPin.P1;
-
-        // Generar pulso de trigger
-        pins.digitalWritePin(trig, 0);
+        // Pines P2 (Trig) y P1 (Echo) 
+        pins.digitalWritePin(DigitalPin.P2, 0);
         control.waitMicros(2);
-        pins.digitalWritePin(trig, 1);
+        pins.digitalWritePin(DigitalPin.P2, 1);
         control.waitMicros(10);
-        pins.digitalWritePin(trig, 0);
-
-        // Leer eco (Max 25ms espera)
-        let d = pins.pulseIn(echo, PulseValue.High, 25000);
+        pins.digitalWritePin(DigitalPin.P2, 0);
         
+        let d = pins.pulseIn(DigitalPin.P1, PulseValue.High, 25000);
         if (d == 0) return 0;
-        
-        // Calcular distancia cm: tiempo / 58
         return Math.floor(d / 58);
-    }
-
-    /**
-     * Devuelve el valor analógico (0-1023) del sensor de línea seleccionado.
-     * Negro suele ser > 30 (valor alto) y Blanco < 30 (valor bajo).
-     */
-    //% block="leer línea %sensor"
-    //% weight=70
-    export function leerLinea(sensor: SensorLinea): number {
-        return pins.analogReadPin(sensor);
-    }
-
-    /**
-     * Devuelve verdadero si detecta línea negra (basado en umbral).
-     */
-    //% block="¿detecta línea en %sensor?"
-    //% weight=65
-    export function detectarLinea(sensor: SensorLinea): boolean {
-        // Asumimos negro > 50 (margen de seguridad sobre el 30 de la doc)
-        return pins.analogReadPin(sensor) > 50;
     }
 }
