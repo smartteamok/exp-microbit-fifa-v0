@@ -41,6 +41,29 @@ enum BeatPuerto {
 //% color="#228B22" weight=100 icon="\uf1e3" block="Beat Mundial"
 namespace beatMundial {
 
+    // --- GRUPO: CONFIGURACIÓN ---
+
+    /**
+     * Desactiva la matriz de LEDs de la micro:bit.
+     * Úsalo en "Al iniciar" para evitar interferencias con el sensor de línea (P10).
+     */
+    //% block="Deshabilitar matriz LED"
+    //% group="Configuración"
+    //% weight=100
+    export function deshabilitarMatriz(): void {
+        led.enable(false);
+    }
+
+    /**
+     * Activa la matriz de LEDs de la micro:bit.
+     */
+    //% block="Habilitar matriz LED"
+    //% group="Configuración"
+    //% weight=99
+    export function habilitarMatriz(): void {
+        led.enable(true);
+    }
+
     // --- GRUPO: MOTORES ---
 
     /**
