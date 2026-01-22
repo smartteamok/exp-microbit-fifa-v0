@@ -181,7 +181,7 @@ namespace beatMundial {
     /**
      * Comprueba la posición de la línea en el pin 1.
      */
-    //% block="siguelíneas %posicion en pin %puerto"
+    //% block="siguelíneas %posicion en %puerto"
     //% puerto.defl=BeatPuerto.Puerto1
     //% group="Entradas Digitales"
     //% weight=50
@@ -211,12 +211,13 @@ namespace beatMundial {
 
     /**
      * Lee la distancia en cm usando el sensor ultrasónico conectado al pin 1.
+     * Devuelve texto para mostrar directamente en pantalla.
      */
-    //% block="Leer distancia (cm) en pin %puerto"
+    //% block="Distancia (cm) en %puerto"
     //% puerto.defl=BeatPuerto.Puerto1
     //% group="Entradas Digitales"
     //% weight=40
-    export function leerDistancia(puerto: BeatPuerto): number {
+    export function leerDistancia(puerto: BeatPuerto): string {
         // Pines fijos para el conector 1 (Ultrasonido)
         pins.digitalWritePin(DigitalPin.P2, 0);
         control.waitMicros(2);
@@ -225,9 +226,9 @@ namespace beatMundial {
         pins.digitalWritePin(DigitalPin.P2, 0);
         
         let d = pins.pulseIn(DigitalPin.P1, PulseValue.High, 25000);
-        if (d == 0) return 0;
+        if (d == 0) return "0";
         
-        return Math.floor(d / 58);
+        return "" + Math.floor(d / 58);
     }
 
     // --- GRUPO: ACTUADORES ---
@@ -349,7 +350,7 @@ namespace beatMundial {
      * Lee temperatura (°C) del DHT11 y devuelve texto.
      * Devuelve "ERR" si la lectura falla.
      */
-    //% block="Temperatura DHT11 en pin %puerto"
+    //% block="Temperatura DHT11 (°C) en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
     //% group="Sensores"
     //% weight=58
@@ -363,7 +364,7 @@ namespace beatMundial {
      * Lee humedad (%) del DHT11 y devuelve texto.
      * Devuelve "ERR" si la lectura falla.
      */
-    //% block="Humedad DHT11 en pin %puerto"
+    //% block="Humedad DHT11 (%) en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
     //% group="Sensores"
     //% weight=56
