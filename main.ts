@@ -60,7 +60,54 @@ enum BeatFanAccion {
     Parar = 2
 }
 
-//% color="#228B22" weight=100 icon="\uf1e3" block="Beat Mundial"
+enum BeatJoystickEje {
+    //% block="eje X"
+    EjeX = 0,
+    //% block="eje Y"
+    EjeY = 1,
+    //% block="pulsador"
+    Pulsador = 2
+}
+
+enum BeatPuertoJoystick {
+    //% block="Puerto 1"
+    Puerto1 = 1
+}
+
+enum BeatLedIndex {
+    //% block="0"
+    Led0 = 0,
+    //% block="1"
+    Led1 = 1,
+    //% block="2"
+    Led2 = 2,
+    //% block="3"
+    Led3 = 3,
+    //% block="4"
+    Led4 = 4,
+    //% block="5"
+    Led5 = 5
+}
+
+enum BeatLedSeleccion {
+    //% block="todos"
+    Todos = -1,
+    //% block="0"
+    Led0 = 0,
+    //% block="1"
+    Led1 = 1,
+    //% block="2"
+    Led2 = 2,
+    //% block="3"
+    Led3 = 3,
+    //% block="4"
+    Led4 = 4,
+    //% block="5"
+    Led5 = 5
+}
+
+//% color="#ed6a22" weight=100 icon="\uf1e3" block="Beat Mundial"
+//% groups='["Configuración","Entradas Digitales","Entradas Analógicas","Motores","Visualización"]'
 namespace beatMundial {
 
     // --- GRUPO: CONFIGURACIÓN ---
@@ -307,7 +354,7 @@ namespace beatMundial {
      */
     //% block="Humedad de suelo en %puerto"
     //% puerto.defl=BeatPuertoAnalog.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Analógicas"
     //% weight=70
     export function leerHumedadSuelo(puerto: BeatPuertoAnalog): number {
         return pins.analogReadPin(getAnalogPin(puerto));
@@ -318,7 +365,7 @@ namespace beatMundial {
      */
     //% block="Intensidad luminosa en %puerto"
     //% puerto.defl=BeatPuertoAnalog.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Analógicas"
     //% weight=68
     export function leerLuz(puerto: BeatPuertoAnalog): number {
         return pins.analogReadPin(getAnalogPin(puerto));
@@ -329,10 +376,31 @@ namespace beatMundial {
      */
     //% block="Posición potenciómetro en %puerto"
     //% puerto.defl=BeatPuertoAnalog.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Analógicas"
     //% weight=66
     export function leerPotenciometro(puerto: BeatPuertoAnalog): number {
         return pins.analogReadPin(getAnalogPin(puerto));
+    }
+
+    /**
+     * Lee el joystick del Puerto 1.
+     * Eje X y Y devuelven 0-1023, pulsador devuelve 0 o 1.
+     */
+    //% block="Joystick %eje en %puerto"
+    //% eje.defl=BeatJoystickEje.EjeX
+    //% puerto.defl=BeatPuertoJoystick.Puerto1
+    //% group="Entradas Analógicas"
+    //% weight=64
+    export function leerJoystick(eje: BeatJoystickEje, puerto: BeatPuertoJoystick): number {
+        switch (eje) {
+            case BeatJoystickEje.EjeX:
+                return pins.analogReadPin(AnalogPin.P1);
+            case BeatJoystickEje.EjeY:
+                return pins.analogReadPin(AnalogPin.P2);
+            default:
+                pins.setPull(DigitalPin.P10, PinPullMode.PullUp);
+                return pins.digitalReadPin(DigitalPin.P10) == 0 ? 1 : 0;
+        }
     }
 
     /**
@@ -340,7 +408,7 @@ namespace beatMundial {
      */
     //% block="Táctil en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Digitales"
     //% weight=60
     export function leerBotonTactil(puerto: BeatPuerto): boolean {
         return pins.digitalReadPin(getDigitalPin(puerto)) == 1;
@@ -351,10 +419,10 @@ namespace beatMundial {
      */
     //% block="Pulsador en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Digitales"
     //% weight=59
     export function leerPulsador(puerto: BeatPuerto): boolean {
-        return pins.digitalReadPin(getDigitalPin(puerto)) == 1;
+        return pins.digitalReadPin(getDigitalPin(puerto)) == 0;
     }
 
     /**
@@ -363,7 +431,7 @@ namespace beatMundial {
      */
     //% block="Temperatura DHT11 (°C) en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Digitales"
     //% weight=58
     export function leerTemperaturaDHT11(puerto: BeatPuerto): string {
         const data = dht11Read(getDigitalPin(puerto));
@@ -375,9 +443,9 @@ namespace beatMundial {
      * Lee humedad (%) del DHT11 y devuelve texto.
      * Devuelve "ERR" si la lectura falla.
      */
-    //% block="Humedad DHT11 (%%) en %puerto"
+    //% block="Humedad DHT11 en %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Sensores"
+    //% group="Entradas Digitales"
     //% weight=56
     export function leerHumedadDHT11(puerto: BeatPuerto): string {
         const data = dht11Read(getDigitalPin(puerto));
@@ -391,7 +459,7 @@ namespace beatMundial {
      * Borra la pantalla LCD.
      */
     //% block="Borrar Pantalla LCD"
-    //% group="Pantalla"
+    //% group="Visualización"
     //% weight=48
     export function lcdBorrar(): void {
         lcdEnsureInit();
@@ -405,7 +473,7 @@ namespace beatMundial {
     //% block="Pantalla LCD mostrar %texto en x %x y %y"
     //% x.min=0 x.max=15 x.defl=0
     //% y.min=0 y.max=1 y.defl=0
-    //% group="Pantalla"
+    //% group="Visualización"
     //% weight=46
     export function lcdMostrar(texto: string, x: number, y: number): void {
         lcdEnsureInit();
@@ -417,32 +485,38 @@ namespace beatMundial {
     }
 
     /**
-     * Enciende toda la tira RGB con un color.
+     * Enciende toda la tira RGB o un LED con un color.
      */
-    //% block="Tira RGB en %puerto mostrar color %color"
+    //% block="Tira RGB en %puerto mostrar color %color en %led"
     //% color.shadow="colorNumberPicker"
+    //% led.defl=BeatLedSeleccion.Todos
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Pantalla"
+    //% group="Visualización"
     //% weight=44
-    export function tiraRgbColor(puerto: BeatPuerto, color: number): void {
+    export function tiraRgbColor(puerto: BeatPuerto, color: number, led: BeatLedSeleccion): void {
         const strip = neoPixelStrip(puerto);
-        strip.showColor(color);
+        if (led === BeatLedSeleccion.Todos) {
+            strip.showColor(color);
+            return;
+        }
+        strip.setPixelColor(<number>led, color);
+        strip.show();
     }
 
     /**
      * Ajusta el color de un LED individual.
      */
     //% block="Tira RGB en %puerto LED %led R %r G %g B %b"
-    //% led.min=0 led.max=5 led.defl=0
+    //% led.defl=BeatLedIndex.Led0
     //% r.min=0 r.max=255 r.defl=255
     //% g.min=0 g.max=255 g.defl=0
     //% b.min=0 b.max=255 b.defl=0
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Pantalla"
+    //% group="Visualización"
     //% weight=42
-    export function tiraRgbLed(puerto: BeatPuerto, led: number, r: number, g: number, b: number): void {
+    export function tiraRgbLed(puerto: BeatPuerto, led: BeatLedIndex, r: number, g: number, b: number): void {
         const strip = neoPixelStrip(puerto);
-        const index = clamp(led, 0, 5);
+        const index = clamp(<number>led, 0, 5);
         strip.setPixelColor(index, neopixel.rgb(clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)));
         strip.show();
     }
@@ -452,7 +526,7 @@ namespace beatMundial {
      */
     //% block="Tira RGB en %puerto apagar"
     //% puerto.defl=BeatPuerto.Puerto0
-    //% group="Pantalla"
+    //% group="Visualización"
     //% weight=41
     export function tiraRgbApagar(puerto: BeatPuerto): void {
         const strip = neoPixelStrip(puerto);
