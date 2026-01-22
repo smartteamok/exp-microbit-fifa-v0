@@ -74,6 +74,24 @@ enum BeatPuertoJoystick {
     Puerto1 = 1
 }
 
+enum BeatColorCanal {
+    //% block="R"
+    Rojo = 0,
+    //% block="G"
+    Verde = 1,
+    //% block="B"
+    Azul = 2
+}
+
+enum BeatColorDetectado {
+    //% block="rojo"
+    Rojo = 0,
+    //% block="verde"
+    Verde = 1,
+    //% block="azul"
+    Azul = 2
+}
+
 enum BeatLedIndex {
     //% block="0"
     Led0 = 0,
@@ -383,6 +401,54 @@ namespace beatMundial {
     }
 
     /**
+     * Lee el nivel de R, G o B del sensor de color TCS34725.
+     */
+    //% block="Nivel de %canal en sensor de color"
+    //% canal.defl=BeatColorCanal.Rojo
+    //% group="Entradas Analógicas"
+    //% weight=65
+    export function leerNivelColor(canal: BeatColorCanal): number {
+        const rgb = tcs34725ReadRgb();
+        switch (canal) {
+            case BeatColorCanal.Rojo:
+                return tcs34725ToAnalog(rgb[0]);
+            case BeatColorCanal.Verde:
+                return tcs34725ToAnalog(rgb[1]);
+            default:
+                return tcs34725ToAnalog(rgb[2]);
+        }
+    }
+
+    /**
+     * Detecta si el color dominante coincide con la selección.
+     * Devuelve 1 si coincide, 0 si no.
+     */
+    //% block="Color detectado es %color"
+    //% color.defl=BeatColorDetectado.Rojo
+    //% group="Entradas Analógicas"
+    //% weight=63
+    export function colorDetectado(color: BeatColorDetectado): number {
+        const rgb = tcs34725ReadRgb();
+        const r = tcs34725ToAnalog(rgb[0]);
+        const g = tcs34725ToAnalog(rgb[1]);
+        const b = tcs34725ToAnalog(rgb[2]);
+        const min = 100;
+        let detected = false;
+        switch (color) {
+            case BeatColorDetectado.Rojo:
+                detected = r > min && r > g && r > b;
+                break;
+            case BeatColorDetectado.Verde:
+                detected = g > min && g > r && g > b;
+                break;
+            default:
+                detected = b > min && b > r && b > g;
+                break;
+        }
+        return detected ? 1 : 0;
+    }
+
+    /**
      * Lee el joystick del Puerto 1.
      * Eje X y Y devuelven 0-1023, pulsador devuelve 0 o 1.
      */
@@ -540,9 +606,20 @@ namespace beatMundial {
     const LCD_ADDR = 0x27;
     const LCD_BACKLIGHT = 0x08;
     const LCD_ENABLE = 0x04;
+    const TCS34725_ADDR = 0x29;
+    const TCS34725_COMMAND = 0x80;
+    const TCS34725_ENABLE = 0x00;
+    const TCS34725_ATIME = 0x01;
+    const TCS34725_CONTROL = 0x0F;
+    const TCS34725_STATUS = 0x13;
+    const TCS34725_CDATAL = 0x14;
+    const TCS34725_RDATAL = 0x16;
+    const TCS34725_GDATAL = 0x18;
+    const TCS34725_BDATAL = 0x1A;
     const NEOPIXEL_COUNT = 6;
     const servoPosiciones = [90, 90, 90, 90];
     const neoStrips: neopixel.Strip[] = [null, null, null, null];
+    let tcs34725Inicializado = false;
 
     function lcdEnsureInit(): void {
         if (lcdInicializado) return;
@@ -590,6 +667,49 @@ namespace beatMundial {
         const row = clamp(y, 0, 1);
         const rowOffsets = [0x00, 0x40];
         lcdCommand(0x80 | (col + rowOffsets[row]));
+    }
+
+    function tcs34725Init(): void {
+        if (tcs34725Inicializado) return;
+        tcs34725Inicializado = true;
+        tcs34725Write(TCS34725_ATIME, 0xEB); // ~50ms integration
+        tcs34725Write(TCS34725_CONTROL, 0x01); // 4x gain
+        tcs34725Write(TCS34725_ENABLE, 0x01); // PON
+        control.waitMicros(3000);
+        tcs34725Write(TCS34725_ENABLE, 0x03); // PON + AEN
+        basic.pause(60);
+    }
+
+    function tcs34725Write(reg: number, value: number): void {
+        const buf = pins.createBuffer(2);
+        buf[0] = TCS34725_COMMAND | reg;
+        buf[1] = value & 0xff;
+        pins.i2cWriteBuffer(TCS34725_ADDR, buf);
+    }
+
+    function tcs34725Read8(reg: number): number {
+        pins.i2cWriteNumber(TCS34725_ADDR, TCS34725_COMMAND | reg, NumberFormat.UInt8BE);
+        return pins.i2cReadNumber(TCS34725_ADDR, NumberFormat.UInt8BE);
+    }
+
+    function tcs34725Read16(reg: number): number {
+        pins.i2cWriteNumber(TCS34725_ADDR, TCS34725_COMMAND | reg, NumberFormat.UInt8BE);
+        return pins.i2cReadNumber(TCS34725_ADDR, NumberFormat.UInt16LE);
+    }
+
+    function tcs34725ReadRgb(): number[] {
+        tcs34725Init();
+        if ((tcs34725Read8(TCS34725_STATUS) & 0x01) == 0) {
+            basic.pause(5);
+        }
+        const r = tcs34725Read16(TCS34725_RDATAL);
+        const g = tcs34725Read16(TCS34725_GDATAL);
+        const b = tcs34725Read16(TCS34725_BDATAL);
+        return [r, g, b];
+    }
+
+    function tcs34725ToAnalog(value: number): number {
+        return clamp(Math.floor((value * 1023) / 65535), 0, 1023);
     }
 
     function neoPixelStrip(puerto: BeatPuerto): neopixel.Strip {
