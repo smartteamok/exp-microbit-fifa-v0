@@ -90,9 +90,13 @@ namespace beatMundial {
         if (pwm < 0) pwm = 0; 
         if (pwm > 1023) pwm = 1023;
 
-        // Pines definidos según hardware
-        // Motor Izq: P15 (Dir), P16 (PWM). Avanzar=1
-        // Motor Der: P13 (Dir), P14 (PWM). Avanzar=0 (Invertido)
+        // AJUSTE DE LÓGICA (Corrección Usuario):
+        // Motor Izquierdo (Bloque) -> Ahora controla P13/P14 (Físico)
+        // Motor Derecho (Bloque)   -> Ahora controla P15/P16 (Físico)
+        
+        // DIRECCIONES INVERTIDAS:
+        // P13 (Nuevo Izq): Antes Adelante=0 -> Ahora Adelante=1
+        // P15 (Nuevo Der): Antes Adelante=1 -> Ahora Adelante=0
 
         let dirIzq = 0; 
         let dirDer = 0;
@@ -101,27 +105,35 @@ namespace beatMundial {
 
         switch (direccion) {
             case BeatDireccion.Adelante:
-                dirIzq = 1; dirDer = 0; 
+                dirIzq = 1; // P13 en 1 para avanzar
+                dirDer = 0; // P15 en 0 para avanzar
                 break;
             case BeatDireccion.Atras:
-                dirIzq = 0; dirDer = 1; 
+                dirIzq = 0; // P13 en 0 para retroceder
+                dirDer = 1; // P15 en 1 para retroceder
                 break;
             case BeatDireccion.Izquierda:
-                dirIzq = 0; dirDer = 0; 
+                // Giro sobre eje a la izquierda: Izq Atrás, Der Adelante
+                dirIzq = 0; 
+                dirDer = 0; 
                 break;
             case BeatDireccion.Derecha:
-                dirIzq = 1; dirDer = 1; 
+                // Giro sobre eje a la derecha: Izq Adelante, Der Atrás
+                dirIzq = 1; 
+                dirDer = 1; 
                 break;
         }
 
+        // Aplicar lógica al MOTOR IZQUIERDO (Ahora mapeado a P13/P14)
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
-            pins.digitalWritePin(DigitalPin.P15, dirIzq);
-            pins.analogWritePin(AnalogPin.P16, pwmIzq);
+            pins.digitalWritePin(DigitalPin.P13, dirIzq);
+            pins.analogWritePin(AnalogPin.P14, pwmIzq);
         }
 
+        // Aplicar lógica al MOTOR DERECHO (Ahora mapeado a P15/P16)
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
-            pins.digitalWritePin(DigitalPin.P13, dirDer);
-            pins.analogWritePin(AnalogPin.P14, pwmDer);
+            pins.digitalWritePin(DigitalPin.P15, dirDer);
+            pins.analogWritePin(AnalogPin.P16, pwmDer);
         }
     }
 
@@ -132,11 +144,13 @@ namespace beatMundial {
     //% group="Motores"
     //% weight=70
     export function parar(motor: BeatMotor): void {
+        // Apagar Izquierdo (P14 PWM)
         if (motor === BeatMotor.Ambos || motor === BeatMotor.Izquierdo) {
-            pins.analogWritePin(AnalogPin.P16, 0);
-        }
-        if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
             pins.analogWritePin(AnalogPin.P14, 0);
+        }
+        // Apagar Derecho (P16 PWM)
+        if (motor === BeatMotor.Ambos || motor === BeatMotor.Derecho) {
+            pins.analogWritePin(AnalogPin.P16, 0);
         }
     }
 
