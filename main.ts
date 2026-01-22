@@ -346,31 +346,31 @@ namespace beatMundial {
     }
 
     /**
-     * Lee temperatura (°C) del DHT11.
-     * Devuelve -1 si la lectura falla.
+     * Lee temperatura (°C) del DHT11 y devuelve texto.
+     * Devuelve "ERR" si la lectura falla.
      */
-    //% block="Leer temperatura DHT11 en %puerto"
+    //% block="Temperatura DHT11 en pin %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
     //% group="Sensores"
     //% weight=58
-    export function leerTemperaturaDHT11(puerto: BeatPuerto): number {
+    export function leerTemperaturaDHT11(puerto: BeatPuerto): string {
         const data = dht11Read(getDigitalPin(puerto));
-        if (data.length < 5) return -1;
-        return data[2];
+        if (data.length < 5) return "ERR";
+        return "" + data[2];
     }
 
     /**
-     * Lee humedad (%) del DHT11.
-     * Devuelve -1 si la lectura falla.
+     * Lee humedad (%) del DHT11 y devuelve texto.
+     * Devuelve "ERR" si la lectura falla.
      */
-    //% block="Leer humedad DHT11 en %puerto"
+    //% block="Humedad DHT11 en pin %puerto"
     //% puerto.defl=BeatPuerto.Puerto0
     //% group="Sensores"
     //% weight=56
-    export function leerHumedadDHT11(puerto: BeatPuerto): number {
+    export function leerHumedadDHT11(puerto: BeatPuerto): string {
         const data = dht11Read(getDigitalPin(puerto));
-        if (data.length < 5) return -1;
-        return data[0];
+        if (data.length < 5) return "ERR";
+        return "" + data[0];
     }
 
     // --- GRUPO: PANTALLA ---
