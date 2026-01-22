@@ -34,8 +34,30 @@ enum BeatPosicionLinea {
 }
 
 enum BeatPuerto {
-    //% block="1"
+    //% block="Puerto 0"
+    Puerto0 = 0,
+    //% block="Puerto 1"
+    Puerto1 = 1,
+    //% block="Puerto 2"
+    Puerto2 = 2,
+    //% block="Puerto 3"
+    Puerto3 = 3
+}
+
+enum BeatPuertoAnalog {
+    //% block="Puerto 0"
+    Puerto0 = 0,
+    //% block="Puerto 1"
     Puerto1 = 1
+}
+
+enum BeatFanAccion {
+    //% block="Girar Izq."
+    Izquierda = 0,
+    //% block="Girar Der."
+    Derecha = 1,
+    //% block="Parar"
+    Parar = 2
 }
 
 //% color="#228B22" weight=100 icon="\uf1e3" block="Beat Mundial"
@@ -206,5 +228,320 @@ namespace beatMundial {
         if (d == 0) return 0;
         
         return Math.floor(d / 58);
+    }
+
+    // --- GRUPO: ACTUADORES ---
+
+    /**
+     * Controla el ventilador conectado al Puerto 1 (P2 y P1).
+     */
+    //% block="Ventilador %accion"
+    //% accion.defl=BeatFanAccion.Parar
+    //% group="Actuadores"
+    //% weight=85
+    export function ventilador(accion: BeatFanAccion): void {
+        switch (accion) {
+            case BeatFanAccion.Izquierda:
+                pins.digitalWritePin(DigitalPin.P2, 1);
+                pins.digitalWritePin(DigitalPin.P1, 0);
+                break;
+            case BeatFanAccion.Derecha:
+                pins.digitalWritePin(DigitalPin.P2, 0);
+                pins.digitalWritePin(DigitalPin.P1, 1);
+                break;
+            default:
+                pins.digitalWritePin(DigitalPin.P2, 0);
+                pins.digitalWritePin(DigitalPin.P1, 0);
+                break;
+        }
+    }
+
+    /**
+     * Posiciona un servo en el puerto seleccionado.
+     */
+    //% block="Posicionar servo en %puerto a %grados°"
+    //% grados.min=0 grados.max=180 grados.defl=90
+    //% puerto.defl=BeatPuerto.Puerto0
+    //% group="Actuadores"
+    //% weight=80
+    export function servoPosicionar(puerto: BeatPuerto, grados: number): void {
+        const pin = getServoPin(puerto);
+        const clamped = clampServoAngle(grados);
+        pins.servoWritePin(pin, clamped);
+        servoPosiciones[puertoIndex(puerto)] = clamped;
+    }
+
+    /**
+     * Mueve el servo gradualmente hasta el ángulo deseado.
+     */
+    //% block="Mover servo en %puerto a %grados° gradualmente cada %ms ms"
+    //% grados.min=0 grados.max=180 grados.defl=90
+    //% ms.min=1 ms.defl=10
+    //% puerto.defl=BeatPuerto.Puerto0
+    //% group="Actuadores"
+    //% weight=75
+    export function servoMoverGradual(puerto: BeatPuerto, grados: number, ms: number): void {
+        const pin = getServoPin(puerto);
+        const target = clampServoAngle(grados);
+        const index = puertoIndex(puerto);
+        let current = servoPosiciones[index];
+        if (ms < 1) ms = 1;
+        if (current === target) {
+            pins.servoWritePin(pin, target);
+            return;
+        }
+        const step = current < target ? 1 : -1;
+        for (let pos = current; pos != target; pos += step) {
+            pins.servoWritePin(pin, pos);
+            basic.pause(ms);
+        }
+        pins.servoWritePin(pin, target);
+        servoPosiciones[index] = target;
+    }
+
+    // --- GRUPO: SENSORES ---
+
+    /**
+     * Lee humedad de suelo en el puerto seleccionado.
+     */
+    //% block="Leer humedad de suelo en %puerto"
+    //% puerto.defl=BeatPuertoAnalog.Puerto0
+    //% group="Sensores"
+    //% weight=70
+    export function leerHumedadSuelo(puerto: BeatPuertoAnalog): number {
+        return pins.analogReadPin(getAnalogPin(puerto));
+    }
+
+    /**
+     * Lee intensidad de luz en el puerto seleccionado.
+     */
+    //% block="Leer luz en %puerto"
+    //% puerto.defl=BeatPuertoAnalog.Puerto0
+    //% group="Sensores"
+    //% weight=68
+    export function leerLuz(puerto: BeatPuertoAnalog): number {
+        return pins.analogReadPin(getAnalogPin(puerto));
+    }
+
+    /**
+     * Lee potenciómetro en el puerto seleccionado.
+     */
+    //% block="Leer potenciómetro en %puerto"
+    //% puerto.defl=BeatPuertoAnalog.Puerto0
+    //% group="Sensores"
+    //% weight=66
+    export function leerPotenciometro(puerto: BeatPuertoAnalog): number {
+        return pins.analogReadPin(getAnalogPin(puerto));
+    }
+
+    /**
+     * Lee el estado de un botón táctil digital.
+     */
+    //% block="Botón táctil en %puerto"
+    //% puerto.defl=BeatPuerto.Puerto0
+    //% group="Sensores"
+    //% weight=60
+    export function leerBotonTactil(puerto: BeatPuerto): boolean {
+        return pins.digitalReadPin(getDigitalPin(puerto)) == 1;
+    }
+
+    /**
+     * Lee temperatura (°C) del DHT11.
+     * Devuelve -1 si la lectura falla.
+     */
+    //% block="Leer temperatura DHT11 en %puerto"
+    //% puerto.defl=BeatPuerto.Puerto0
+    //% group="Sensores"
+    //% weight=58
+    export function leerTemperaturaDHT11(puerto: BeatPuerto): number {
+        const data = dht11Read(getDigitalPin(puerto));
+        if (data.length < 5) return -1;
+        return data[2];
+    }
+
+    /**
+     * Lee humedad (%) del DHT11.
+     * Devuelve -1 si la lectura falla.
+     */
+    //% block="Leer humedad DHT11 en %puerto"
+    //% puerto.defl=BeatPuerto.Puerto0
+    //% group="Sensores"
+    //% weight=56
+    export function leerHumedadDHT11(puerto: BeatPuerto): number {
+        const data = dht11Read(getDigitalPin(puerto));
+        if (data.length < 5) return -1;
+        return data[0];
+    }
+
+    // --- GRUPO: PANTALLA ---
+
+    /**
+     * Inicializa el LCD 1602 por I2C.
+     */
+    //% block="Iniciar LCD 1602"
+    //% group="Pantalla"
+    //% weight=50
+    export function lcdIniciar(): void {
+        lcdEnsureInit();
+    }
+
+    /**
+     * Borra la pantalla LCD 1602.
+     */
+    //% block="Borrar LCD 1602"
+    //% group="Pantalla"
+    //% weight=48
+    export function lcdBorrar(): void {
+        lcdEnsureInit();
+        lcdCommand(0x01);
+        basic.pause(2);
+    }
+
+    /**
+     * Muestra texto en la posición (x, y).
+     */
+    //% block="LCD 1602 mostrar %texto en x %x y %y"
+    //% x.min=0 x.max=15 x.defl=0
+    //% y.min=0 y.max=1 y.defl=0
+    //% group="Pantalla"
+    //% weight=46
+    export function lcdMostrar(texto: string, x: number, y: number): void {
+        lcdEnsureInit();
+        lcdSetCursor(x, y);
+        const limit = 16;
+        for (let i = 0; i < texto.length && i < limit; i++) {
+            lcdData(texto.charCodeAt(i));
+        }
+    }
+
+    // --- UTILIDADES INTERNAS ---
+
+    let lcdInicializado = false;
+    const LCD_ADDR = 0x27;
+    const LCD_BACKLIGHT = 0x08;
+    const LCD_ENABLE = 0x04;
+    const servoPosiciones = [90, 90, 90, 90];
+
+    function lcdEnsureInit(): void {
+        if (lcdInicializado) return;
+        lcdInicializado = true;
+        basic.pause(50);
+        lcdWrite4(0x30, 0);
+        control.waitMicros(4500);
+        lcdWrite4(0x30, 0);
+        control.waitMicros(4500);
+        lcdWrite4(0x30, 0);
+        control.waitMicros(150);
+        lcdWrite4(0x20, 0);
+        lcdCommand(0x28); // 4-bit, 2-line
+        lcdCommand(0x0C); // display on
+        lcdCommand(0x06); // entry mode
+        lcdCommand(0x01); // clear
+        basic.pause(2);
+    }
+
+    function lcdWrite4(data: number, mode: number): void {
+        const value = data | mode | LCD_BACKLIGHT;
+        pins.i2cWriteNumber(LCD_ADDR, value | LCD_ENABLE, NumberFormat.Int8LE);
+        control.waitMicros(1);
+        pins.i2cWriteNumber(LCD_ADDR, value & ~LCD_ENABLE, NumberFormat.Int8LE);
+        control.waitMicros(50);
+    }
+
+    function lcdSend(value: number, mode: number): void {
+        const high = value & 0xF0;
+        const low = (value << 4) & 0xF0;
+        lcdWrite4(high, mode);
+        lcdWrite4(low, mode);
+    }
+
+    function lcdCommand(cmd: number): void {
+        lcdSend(cmd, 0);
+    }
+
+    function lcdData(data: number): void {
+        lcdSend(data, 1);
+    }
+
+    function lcdSetCursor(x: number, y: number): void {
+        const col = clamp(x, 0, 15);
+        const row = clamp(y, 0, 1);
+        const rowOffsets = [0x00, 0x40];
+        lcdCommand(0x80 | (col + rowOffsets[row]));
+    }
+
+    function getAnalogPin(puerto: BeatPuertoAnalog): AnalogPin {
+        switch (puerto) {
+            case BeatPuertoAnalog.Puerto0:
+                return AnalogPin.P0;
+            default:
+                return AnalogPin.P2;
+        }
+    }
+
+    function getDigitalPin(puerto: BeatPuerto): DigitalPin {
+        switch (puerto) {
+            case BeatPuerto.Puerto0:
+                return DigitalPin.P0;
+            case BeatPuerto.Puerto1:
+                return DigitalPin.P2;
+            case BeatPuerto.Puerto2:
+                return DigitalPin.P11;
+            default:
+                return DigitalPin.P5;
+        }
+    }
+
+    function getServoPin(puerto: BeatPuerto): AnalogPin {
+        return <AnalogPin><number>getDigitalPin(puerto);
+    }
+
+    function puertoIndex(puerto: BeatPuerto): number {
+        switch (puerto) {
+            case BeatPuerto.Puerto0:
+                return 0;
+            case BeatPuerto.Puerto1:
+                return 1;
+            case BeatPuerto.Puerto2:
+                return 2;
+            default:
+                return 3;
+        }
+    }
+
+    function clampServoAngle(value: number): number {
+        return clamp(value, 0, 180);
+    }
+
+    function clamp(value: number, min: number, max: number): number {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    function dht11Read(pin: DigitalPin): number[] {
+        const data = [0, 0, 0, 0, 0];
+
+        pins.digitalWritePin(pin, 0);
+        basic.pause(18);
+        pins.digitalWritePin(pin, 1);
+        control.waitMicros(30);
+        pins.setPull(pin, PinPullMode.PullUp);
+
+        if (pins.pulseIn(pin, PulseValue.Low, 1000) == 0) return [];
+        if (pins.pulseIn(pin, PulseValue.High, 1000) == 0) return [];
+
+        for (let i = 0; i < 40; i++) {
+            if (pins.pulseIn(pin, PulseValue.Low, 1000) == 0) return [];
+            const high = pins.pulseIn(pin, PulseValue.High, 1000);
+            if (high == 0) return [];
+            const index = i >> 3;
+            data[index] <<= 1;
+            if (high > 40) data[index] |= 1;
+        }
+
+        const checksum = (data[0] + data[1] + data[2] + data[3]) & 0xFF;
+        if (checksum != data[4]) return [];
+        return data;
     }
 }
